@@ -1,0 +1,14 @@
+{
+	"name": "Node.js & MySQL",
+	"dockerComposeFile": "docker-compose.yml",
+	"service": "app",
+	"workspaceFolder": "/workspaces",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-vscode.vscode-node-azure-pack"
+			]
+		}
+	},
+	"postCreateCommand": "npm install -g nodemon"
+}
