@@ -10,5 +10,5 @@
 			]
 		}
 	},
-	"postCreateCommand": "npm install -g nodemon"
+	"postCreateCommand": "npm install -g nodemon && git config --global --add safe.directory /workspaces"
 }

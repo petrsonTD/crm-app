@@ -12,6 +12,7 @@ services:
       - MYSQL_USER=user
       - MYSQL_PASSWORD=password
       - MYSQL_DATABASE=my-database
+      - CHOKIDAR_USEPOLLING=true
 
   mysql:
     image: mysql:8.0
