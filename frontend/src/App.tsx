@@ -1,57 +1,29 @@
-import { FormEvent, useEffect, useState } from "react";
-import Login from "./components/Login.tsx";
-import { ErrorsI, UserI } from "./intefaces/interfaces.ts";
-import { getCookies, loginUser, signupUser } from "./utils/utils.ts";
+// eslint-disable-next-line import/namespace
+import { RouterProvider, createBrowserRouter } from "react-router-dom";
+import { JSX } from "react";
+import RootLayout from "./pages/Root.tsx";
+import LoginPage from "./pages/Login.tsx";
+import HomePage from "./pages/Home.tsx";
+import RegisterPage from "./pages/Register.tsx";
+import ErrorPage from "./pages/ErrorPage.tsx";
+import ProfilePage from "./pages/Profile.tsx";
 
-function App() {
-  const [user, setUser] = useState<UserI>({ username: "" });
-  const [errors, setErrors] = useState<ErrorsI>({
-    username: "",
-    password: "",
-    confirmPassword: ""
-  });
+const router = createBrowserRouter([
+  {
+    path: "/",
+    element: <RootLayout />,
+    children: [
+      { path: "", element: <HomePage /> },
+      { path: "login", element: <LoginPage /> },
+      { path: "register", element: <RegisterPage /> },
+      { path: "profile", element: <ProfilePage /> },
+    ],
+    errorElement: <ErrorPage />
+  }
+]);
 
-  useEffect(() => {
-    getCookies(setUser);
-  }, []);
-
-  async function handleLogin(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const target = e.target as HTMLFormElement;
-    const data = new FormData(target);
-    const formDataObj = Object.fromEntries(data.entries());
-
-    const userData = await loginUser(formDataObj, setErrors);
-    setUser(userData);
-  };
-
-  async function handleSignup(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const target = e.target as HTMLFormElement;
-    const data = new FormData(target);
-    const formDataObj = Object.fromEntries(data.entries());
-
-    const userData = await signupUser(formDataObj, setErrors);
-    setUser(userData);
-  };
-
-  return (
-    <>
-      {!user.username && (
-        <Login
-          handleLogin={handleLogin}
-          handleSignup={handleSignup}
-          errors={errors}
-          setErrors={setErrors}
-        />
-      )}
-      {user.username && (
-        <h2>
-          {user.username}
-        </h2>
-      )}
-    </>
-  );
+function App(): JSX.Element {
+  return <RouterProvider router={router} />;
 }
 
 export default App;

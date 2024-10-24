@@ -4,7 +4,7 @@ import mysql from 'mysql2/promise';
 import { isValidPassword } from '../utils/auth.ts';
 import { includesObject } from '../utils/functions.ts';
 import { Request, Response } from 'express';
-import { AuthTokenI, SingUpErrorsI } from '../intefaces/interfaces.ts';
+import { AuthTokenI, RegisterErrorsI } from '../intefaces/interfaces.ts';
 
 const activeUsers: AuthTokenI[] = [];
 
@@ -18,7 +18,7 @@ const dbConnections = () => ({
 
 // checkAuth
 export const checkAuth = async (req: Request, res: Response): Promise<void> => {
-    const authToken: any = req.cookies.authToken;
+    const authToken: AuthTokenI = req.cookies.authToken;
 
     if (req.cookies.authToken?.userId) {
         const userId = req.cookies.authToken?.userId;
@@ -28,14 +28,19 @@ export const checkAuth = async (req: Request, res: Response): Promise<void> => {
 
         try {
             connection = await mysql.createConnection(dbConnections());
-            const [results]: any = await connection.execute('SELECT * FROM users WHERE id = ?', [userId]);
+            const [results]: any = await connection.execute(
+                `SELECT users.id, users.username, users.userRank, usersData.lastName, usersData.firstName
+                 FROM users
+                 LEFT JOIN usersData ON users.id = usersData.userId
+                 WHERE users.id = ?`,
+                [userId]
+            );
             if (results.length === 0) {
                 res.status(401).json({ isAuthenticated: false });
                 return;
             }
 
             user = results[0];
-
         } catch (error) {
             console.log('Error:', error);
             res.status(500).json({ message: 'Internal server error' });
@@ -49,7 +54,9 @@ export const checkAuth = async (req: Request, res: Response): Promise<void> => {
         if (includesObject(activeUsers, authToken)) {
             res.json({
                 isAuthenticated: true,
-                username: user.username
+                username: user.username,
+                firstName: user.firstName,
+                lastName: user.lastName
             });
             return;
         } else {
@@ -80,7 +87,13 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     try {
         connection = await mysql.createConnection(dbConnections());
-        const [results]: any = await connection.execute('SELECT * FROM users WHERE username = ?', [username]);
+        const [results]: any = await connection.execute(
+            `SELECT users.id, users.username, users.password, users.userRank, usersData.lastName, usersData.firstName
+            FROM users
+            LEFT JOIN usersData ON users.id = usersData.userId
+            WHERE users.username = ?`,
+            [username]
+        );
 
         if (results.length === 0) {
             res.status(401).json({
@@ -124,32 +137,60 @@ export const login = async (req: Request, res: Response): Promise<void> => {
             httpOnly: true,
             secure: true,
             sameSite: 'strict',
-            maxAge: 5 * 60 * 1000
+            maxAge: 60 * 60 * 1000
         });
 
-        res.status(200).json({ username });
+        res.status(200).json({
+            username: user.username,
+            firstName: user.firstName,
+            lastName: user.lastName
+        });
         return;
     }
 
     res.status(500).json({ message: 'Internal server error' });
 };
 
-// signup
-export const signup = async (req: Request, res: Response): Promise<void> => {
-    const { username, password, confirmPassword } = req.body;
-    let user;
+// logout
+export const logout = async (req: Request, res: Response): Promise<void> => {
+    const authToken: AuthTokenI = req.cookies.authToken;
+
+    if (!authToken?.userId) {
+        res.status(401).json({ message: 'User is not authenticated.' });
+        return;
+    }
+
+    const userIndex = activeUsers.findIndex(user => user.sessionId === authToken.sessionId);
+    if (userIndex !== -1) {
+        activeUsers.splice(userIndex, 1);
+    }
+
+    res.clearCookie('authToken', {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict',
+    });
+
+    res.status(200).json({ message: 'User logged out successfully.' });
+};
+
+// register
+export const register = async (req: Request, res: Response): Promise<void> => {
+    const { username, password, confirmPassword, firstName, lastName } = req.body;
     let connection;
-    let errors: SingUpErrorsI = {};
+    let errors: RegisterErrorsI = {};
 
     try {
         connection = await mysql.createConnection(dbConnections());
         const [results]: any = await connection.execute('SELECT * FROM users WHERE username = ?', [username]);
 
-        if (user) {
+        if (results.length > 0) {
             errors.username = 'Username already exists.';
         }
 
-        user = results[0];
+        if (!username) {
+            errors.username = 'Missing username.';
+        }
     } catch (error) {
         console.log('Error:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -161,11 +202,23 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
     }
 
     if (password.length < 6) {
-        errors.password = 'Ivalid password. Must be at least 6 characters long.';
+        errors.password = 'Password must be at least 6 characters long.';
     }
 
     if (password !== confirmPassword) {
         errors.confirmPassword = 'Passwords aren\'t same.';
+    }
+
+    if (!confirmPassword) {
+        errors.confirmPassword = 'Repeated password can\'t be empty.';
+    }
+
+    if (!firstName) {
+        errors.firstName = 'Missing First Name.';
+    }
+
+    if (!lastName) {
+        errors.lastName = 'Missing Last Name.';
     }
 
     if (Object.keys(errors).length > 0) {
@@ -177,19 +230,24 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
     }
 
     const newUserId = nanoid();
+    const newUserDataId = nanoid();
     const hashedPw = await bcryptjs.hash(password, 12);
 
     try {
         connection = await mysql.createConnection(dbConnections());
+        await connection.beginTransaction();
         await connection.execute(
             'INSERT INTO users (id, username, password, userRank) VALUES (?, ?, ?, ?)',
-            [newUserId, username, hashedPw, 'customer']
+            [newUserId, username, hashedPw, 'support']
         );
-    } catch (error) {
-        console.log('Error:', error);
-        res.status(500).json({ message: 'Internal server error' });
-        return;
-    } finally {
+
+        await connection.execute(
+            'INSERT INTO usersData (id, userId, lastName, firstName) VALUES (?, ?, ?, ?)',
+            [newUserDataId, newUserId, lastName, firstName]
+        );
+
+        await connection.commit();
+
         const authToken: AuthTokenI = { sessionId: nanoid(), userId: newUserId };
 
         activeUsers.push(authToken);
@@ -198,11 +256,23 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
             httpOnly: true,
             secure: true,
             sameSite: 'strict',
-            maxAge: 5 * 60 * 1000
+            maxAge: 60 * 60 * 1000
         });
 
-        res.status(200).json({ username });
+        res.status(200).json({
+            username: username,
+            firstName: firstName,
+            lastName: lastName
+        });
+    } catch (error) {
+        if (connection) {
+            await connection.rollback();
+        }
 
+        console.log('Error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+        return;
+    } finally {
         if (connection) {
             await connection.end();
         }

@@ -9,10 +9,9 @@ export async function getCookies(setUser: Dispatch<SetStateAction<UserI>>): Prom
     .then(response => response.json())
     .then(data => {
       if (data.isAuthenticated) {
-        console.log("cookies are valid");
-        setUser({ username: data.username });
+        setUser({ username: data.username, firstName: data.firstName, lastName: data.lastName });
       } else {
-        console.log("cookies are invalid");
+        setUser({ username: "", firstName: "", lastName: "" });
       }
     });
 }
@@ -36,9 +35,31 @@ export async function loginUser(login: { [key: string]: FormDataEntryValue }, se
 
     const data = await response.json();
     return data;
-  } catch (error: any) {
-    console.error("Error during login:", error.message);
-    return { username: "" };
+  } catch (error: unknown) {
+    console.error("Error during login:", (error as Error).message);
+    return { username: "", firstName: "", lastName: "" };
+  }
+};
+
+export async function logoutUser() {
+  try {
+    const response = await fetch("/api/auth/logout", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include"
+    });
+
+    if (!response.ok) {
+      throw new Error("Logout failed!");
+      return false;
+    }
+
+    return true;
+  } catch (error: unknown) {
+    console.error("Error during logout:", (error as Error).message);
+    return false;
   }
 };
 
@@ -61,8 +82,8 @@ export async function signupUser(signup: { [key: string]: FormDataEntryValue }, 
 
     const data = await response.json();
     return data;
-  } catch (error: any) {
-    console.error("Error during signup:", error.message);
-    return { username: "" };
+  } catch (error: unknown) {
+    console.error("Error during signup:", (error as Error).message);
+    return { username: "", firstName: "", lastName: "" };
   }
 };

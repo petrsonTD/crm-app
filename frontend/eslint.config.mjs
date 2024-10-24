@@ -17,6 +17,7 @@ export default [
         },
         project: "./tsconfig.json",
         ecmaVersion: 2020,
+        sourceType: "module",
       },
     },
     plugins: {
