@@ -8,7 +8,7 @@ import Footer from "../components/Footer.tsx";
 function RootLayout(): JSX.Element {
   return (
     <UserContextProvider>
-      <div className="flex flex-col justify-between h-screen bg-slate-150">
+      <div className="flex flex-col justify-between min-h-screen bg-slate-150">
         <Header />
         <main className="h-full">
           <Outlet />

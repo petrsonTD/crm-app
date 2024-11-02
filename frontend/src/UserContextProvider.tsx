@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { createContext, ReactNode, useEffect, useState, JSX } from "react";
 import { UserI } from "./intefaces/interfaces.ts";
 import { getCookies } from "./utils/utils.ts";
+import { DEFAULT_USER } from "./defaultValues/defaultValues.ts";
 
 interface UserContextType {
   user: UserI;
@@ -15,13 +16,13 @@ interface UserContextProviderProps {
 }
 
 export const UserContext = createContext<UserContextType>({
-  user: { username: "", firstName: "", lastName: "" },
+  user: DEFAULT_USER,
   addUser: () => { },
   removeUser: () => { }
 });
 
 export default function UserContextProvider({ children }: UserContextProviderProps): JSX.Element {
-  const [user, setUser] = useState<UserI>({ username: "", firstName: "", lastName: "" });
+  const [user, setUser] = useState<UserI>(DEFAULT_USER);
   const navigate = useNavigate();
 
   function addUser(newUser: UserI): void {
@@ -29,7 +30,7 @@ export default function UserContextProvider({ children }: UserContextProviderPro
   }
 
   function removeUser(): void {
-    setUser({ username: "", firstName: "", lastName: "" });
+    setUser(DEFAULT_USER);
     navigate("/login");
   }
 

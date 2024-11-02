@@ -1,12 +1,13 @@
 // eslint-disable-next-line import/namespace
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useContext, useEffect, useRef, useState, JSX } from "react";
 import { UserContext } from "../UserContextProvider.tsx";
 import { logoutUser } from "../utils/utils.ts";
 
 function Header(): JSX.Element {
+  const navigate = useNavigate();
   const { user, removeUser } = useContext(UserContext);
-  const [openMenu, setOpenMenu] = useState<boolean>(false);
+  const [openMenu, setOpenMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   async function handleLogout(e: { preventDefault: () => void }): Promise<void> {
@@ -21,6 +22,11 @@ function Header(): JSX.Element {
 
   function toggleMenu(): void {
     setOpenMenu(prevState => !prevState);
+  }
+
+  function navigateToProfile() {
+    setOpenMenu(false);
+    navigate("/profile");
   }
 
   useEffect(() => {
@@ -43,7 +49,9 @@ function Header(): JSX.Element {
 
   return (
     <header className="flex justify-between bg-slate-300 p-2 border-b-2 border-slate-400">
-      Customer Relationship Management
+      <Link to={"/"} className="hover:underline">
+        Customer Relationship Management
+      </Link>
       {user.username ? (
         <div ref={menuRef} className="relative">
           {"Hello "}
@@ -54,9 +62,9 @@ function Header(): JSX.Element {
           </button>
           {openMenu && (
             <div className="absolute bg-slate-300 mt-2 px-2 border-2 border-slate-400 right-[-8px]">
-              <Link to={"/profile"} className="whitespace-nowrap hover:underline">
+              <button onClick={navigateToProfile} className="whitespace-nowrap hover:underline">
                 {`${user.firstName} ${user.lastName}`}
-              </Link>
+              </button>
               <button onClick={handleLogout} className="font-semibold hover:underline">
                 Log out
               </button>
